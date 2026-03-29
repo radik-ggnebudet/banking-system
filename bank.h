@@ -5,6 +5,7 @@
 #include <cstddef>
 
 #define BANK_SHM_NAME "/transparent_bank"
+#define BANK_FILE_PATH "/tmp/transparent_bank"
 #define DEFAULT_MAX_BALANCE 1000000L
 
 struct Account {

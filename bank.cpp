@@ -13,9 +13,35 @@ size_t bank_shm_size(int n) {
     return sizeof(Bank) + sizeof(Account) * n;
 }
 
-Bank *bank_create(int n) {
+static int open_bank_fd(bool create) {
+    // Try shm_open first, fall back to regular file
+    int fd = -1;
+    if (create) {
+        shm_unlink(BANK_SHM_NAME);
+        fd = shm_open(BANK_SHM_NAME, O_CREAT | O_RDWR, 0666);
+    } else {
+        fd = shm_open(BANK_SHM_NAME, O_RDWR, 0666);
+    }
+
+    if (fd >= 0) return fd;
+
+    // Fallback: regular file in /tmp
+    if (create) {
+        unlink(BANK_FILE_PATH);
+        fd = open(BANK_FILE_PATH, O_CREAT | O_RDWR, 0666);
+    } else {
+        fd = open(BANK_FILE_PATH, O_RDWR, 0666);
+    }
+    return fd;
+}
+
+static void unlink_bank() {
     shm_unlink(BANK_SHM_NAME);
-    int fd = shm_open(BANK_SHM_NAME, O_CREAT | O_RDWR, 0666);
+    unlink(BANK_FILE_PATH);
+}
+
+Bank *bank_create(int n) {
+    int fd = open_bank_fd(true);
     if (fd < 0) return nullptr;
 
     size_t sz = bank_shm_size(n);
@@ -43,10 +69,9 @@ Bank *bank_create(int n) {
 }
 
 Bank *bank_open() {
-    int fd = shm_open(BANK_SHM_NAME, O_RDWR, 0666);
+    int fd = open_bank_fd(false);
     if (fd < 0) return nullptr;
 
-    // read num_accounts first
     int n;
     if (read(fd, &n, sizeof(int)) != sizeof(int)) { close(fd); return nullptr; }
 
@@ -60,7 +85,7 @@ Bank *bank_open() {
 void bank_destroy(Bank *bank) {
     pthread_rwlock_destroy(&bank->lock);
     munmap(bank, bank_shm_size(bank->num_accounts));
-    shm_unlink(BANK_SHM_NAME);
+    unlink_bank();
 }
 
 void bank_close(Bank *bank, int n) {
