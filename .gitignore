@@ -1,0 +1,11 @@
+*.o
+*.gcno
+*.gcda
+*.gcov
+bank_init
+bank_deinit
+client_local
+server
+client_net
+.idea/
+.claude/
